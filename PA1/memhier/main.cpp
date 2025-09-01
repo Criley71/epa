@@ -30,7 +30,7 @@ public:
 
   int physical_page_count; // max 1024, must be power of 2
   int physical_page_size;
-  //int physical_page_bit_count;
+  // int physical_page_bit_count;
   int physical_page_num;
 
   int dc_set_count; // max 8192
@@ -38,6 +38,8 @@ public:
   int dc_associativity;
   int dc_line_size; // min 8 (bytes)
   bool dc_write_thru_no_allo;
+  int dc_index_bits;
+  int dc_offset_bits;
 
   int l2_set_count;
   int l2_set_size;
@@ -45,8 +47,10 @@ public:
   int l2_line_size; // >= dc_line_size (bytes)
   bool l2_write_thru_no_allo;
   bool l2_enabled;
+  int l2_index_bits;
+  int l2_offset_bits;
 
-  bool virt_to_phys_trans;
+  bool virt_addr;
 };
 
 Config init(); // function to read in config and set variables
@@ -75,21 +79,21 @@ Config init() {
             colon_index = line.find(':') + 2;
             val = line.substr(colon_index, line.size());
             config.dtlb_set_count = stoi(val);
-            //cout << "dltb set count: " << config.dtlb_set_count << "\n";
-            // //cout << typeid(config.dtlb_set_count).name() << "\n";
+            // cout << "dltb set count: " << config.dtlb_set_count << "\n";
+            //  //cout << typeid(config.dtlb_set_count).name() << "\n";
             val = "";
             if (!check_pwr_2(config.dtlb_set_count)) {
               cout << "DTLB set count is not a power of 2. Exiting\n";
               exit(-1);
             }
             config.dltb_index_bits = log2(config.dtlb_set_count);
-            //cout << "Number of bits DLTB uses for index: " << config.dltb_index_bits << "\n";
+            // cout << "Number of bits DLTB uses for index: " << config.dltb_index_bits << "\n";
           } else if (line.find("Set size") == 0) {
             colon_index = line.find(':') + 2;
             val = line.substr(colon_index, line.size());
             config.dtlb_set_size = stoi(val);
-            //cout << "dltb set size: " << config.dtlb_set_size << "\n";
-            // //cout << typeid(config.dtlb_set_size).name() << "\n";
+            // cout << "dltb set size: " << config.dtlb_set_size << "\n";
+            //  //cout << typeid(config.dtlb_set_size).name() << "\n";
             val = "";
           }
         }
@@ -100,21 +104,21 @@ Config init() {
             colon_index = line.find(':') + 2;
             val = line.substr(colon_index, line.size());
             config.virtual_page_count = stoi(val);
-            //cout << "number of virtual pages: " << config.virtual_page_count << "\n";
-            // //cout << typeid(config.virtual_page_count).name() << "\n";
+            // cout << "number of virtual pages: " << config.virtual_page_count << "\n";
+            //  //cout << typeid(config.virtual_page_count).name() << "\n";
             val = "";
             if (!check_pwr_2(config.virtual_page_count)) {
               cout << "Number of virtual pages is not a power 2. Exiting\n";
               exit(-1);
             }
             config.pt_index_bits = log2(config.virtual_page_count);
-            //cout << "Number of bits used for the page table index is " << config.pt_index_bits << "\n";
+            // cout << "Number of bits used for the page table index is " << config.pt_index_bits << "\n";
           } else if (line.find("Number of physical pages") == 0) {
             colon_index = line.find(':') + 2;
             val = line.substr(colon_index, line.size());
             config.physical_page_count = stoi(val);
-            //cout << "number of phys pages: " << config.physical_page_count << "\n";
-            // //cout << typeid(config.physical_page_count).name() << "\n";
+            // cout << "number of phys pages: " << config.physical_page_count << "\n";
+            //  //cout << typeid(config.physical_page_count).name() << "\n";
             val = "";
             if (!check_pwr_2(config.physical_page_count)) {
               cout << "Number of Physical pages is not a power 2. Exiting\n";
@@ -124,16 +128,112 @@ Config init() {
             colon_index = line.find(':') + 2;
             val = line.substr(colon_index, line.size());
             config.page_size = stoi(val);
-            //cout << "page size: " << config.page_size << "\n";
-            // //cout << typeid(config.page_size).name() << "\n";
+            // cout << "page size: " << config.page_size << "\n";
+            //  //cout << typeid(config.page_size).name() << "\n";
             val = "";
             if (!check_pwr_2(config.page_size)) {
               cout << "Page size is not a power 2. Exiting\n";
               exit(-1);
             }
             config.pt_offset_bit = log2(config.page_size);
-            //cout << "Number of bits used for the page offset is " << "\n";
+            // cout << "Number of bits used for the page offset is " << "\n";
           }
+        }
+      } else if (line.find("Data Cache configuration") == 0) {
+        for (int i = 0; i < 4; i++) {
+          getline(fin, line);
+          if (line.find("Number of sets") == 0) {
+            colon_index = line.find(":") + 2;
+            val = line.substr(colon_index, line.size());
+            config.dc_set_count = stoi(val);
+            val = "";
+            if (!check_pwr_2(config.dc_set_count)) {
+              cout << "Number of DC sets is not a power of 2. Exiting\n";
+              exit(-1);
+            }
+            config.dc_index_bits = log2(config.dc_set_count);
+          } else if (line.find("Set size") == 0) {
+            colon_index = line.find(":") + 2;
+            val = line.substr(colon_index, line.size());
+            config.dc_set_size = stoi(val);
+            val = "";
+            /*
+            if (!check_pwr_2(config.dc_set_size)) {
+              cout << "Number of DC entries is not a power of 2. Exiting\n";
+              exit(-1);
+            }
+              */
+          } else if (line.find("Line size") == 0) {
+            colon_index = line.find(":") + 2;
+            val = line.substr(colon_index, line.size());
+            config.dc_line_size = stoi(val);
+            val = "";
+            if (!check_pwr_2(config.dc_line_size)) {
+              cout << "Number of DC line size is not a power of 2. Exiting\n";
+              exit(-1);
+            }
+            config.dc_offset_bits = log2(config.dc_line_size);
+          } else if (line.find("Write through/no write allocate") == 0) {
+            colon_index = line.find(":") + 2;
+            val = line.substr(colon_index, line.size());
+            if (val == "n") {
+              config.dc_write_thru_no_allo = false;
+            } else {
+              config.dc_write_thru_no_allo = true;
+            }
+            val = "";
+          }
+        }
+      } else if (line.find("L2 Cache configuration") == 0) {
+        for (int i = 0; i < 4; i++) {
+          getline(fin, line);
+          if (line.find("Number of sets") == 0) {
+            colon_index = line.find(":") + 2;
+            val = line.substr(colon_index, line.size());
+            config.l2_set_count = stoi(val);
+            val = "";
+            if (!check_pwr_2(config.l2_set_count)) {
+              cout << "Number of sets in the L2 cache are not a power of 2. Exiting\n";
+              exit(-1);
+            }
+            config.l2_index_bits = log2(config.l2_set_count);
+          } else if (line.find("Set size") == 0) {
+            colon_index = line.find(":") + 2;
+            val = line.substr(colon_index, line.size());
+            config.l2_set_size = stoi(val);
+            val = "";
+          } else if (line.find("Line size") == 0) {
+            colon_index = line.find(":") + 2;
+            val = line.substr(colon_index, line.size());
+            config.l2_line_size = stoi(val);
+            val = "";
+            if (!check_pwr_2(config.l2_line_size)) {
+              cout << "L2 line size is not a power of 2. Exiting\n";
+              exit(-1);
+            }
+            if (config.l2_line_size < config.dc_line_size) {
+              cout << "L2 line size is smaller dc line size. Exiting\n";
+              exit(-1);
+            }
+            config.l2_offset_bits = log2(config.l2_line_size);
+          } else if (line.find("Write through/no write allocate") == 0) {
+            colon_index = line.find(":") + 2;
+            val = line.substr(colon_index, line.size());
+            if (val == "n") {
+              config.l2_write_thru_no_allo = false;
+            } else {
+              config.l2_write_thru_no_allo = true;
+            }
+            val = "";
+          }
+        }
+      } else if (line.find("Virtual addresses") == 0){
+        colon_index = line.find(":") + 2;
+        val = line.substr(colon_index, line.size());
+        if(val == "y"){
+          config.virt_addr = true;
+        }else if (val == "n"){
+          config.virt_addr = false;
         }
       }
     }
@@ -144,13 +244,38 @@ Config init() {
 bool check_pwr_2(int val) { // 8 = 1000, 7 = 0111 ---> 1000 & 0111 = 0000
   return (0 == ((val - 1) & val));
 }
-void print_config_after_read(Config config){
+void print_config_after_read(Config config) {
   cout << "Data TLB contains " << config.dtlb_set_count << " sets.\n";
-  cout << "Each set containes " << config.dtlb_set_size << " entries.\n";
-  cout << "Number of bits used for the index is " << config.dltb_index_bits <<".\n\n";
-  cout << "Number of Virtual Pages is " << config.virtual_page_count << ".\n";
+  cout << "Each set contains " << config.dtlb_set_size << " entries.\n";
+  cout << "Number of bits used for the index is " << config.dltb_index_bits << ".\n\n";
+  cout << "Number of virtual pages is " << config.virtual_page_count << ".\n";
   cout << "Number of physical pages is " << config.physical_page_count << ".\n";
-  cout << "Each page containes " << config.page_size << " bytes.\n";
+  cout << "Each page contains " << config.page_size << " bytes.\n";
   cout << "Number of bits used for the page table index is " << config.pt_index_bits << ".\n";
   cout << "Number of bits used for the page offset is " << config.pt_offset_bit << ".\n\n";
+  cout << "D-cache contains " << config.dc_set_count << " sets.\n";
+  cout << "Each set contains " << config.dc_set_size << " entries.\n";
+  cout << "Each line is " << config.dc_line_size << " bytes.\n";
+  if (config.dc_write_thru_no_allo) {
+    cout << "The cache uses a no-write-allocate and write through policy.\n";
+  } else {
+    cout << "The cache uses a write-allocate and write-back policy.\n";
+  }
+  cout << "Number of bits used for the index is " << config.dc_index_bits << ".\n";
+  cout << "Number of bits used for the offset is " << config.dc_offset_bits << ".\n\n";
+  cout << "L2-cache contains " << config.l2_set_count << " sets.\n";
+  cout << "Each set contains " << config.l2_set_size << " entries.\n";
+  cout << "Each line is " << config.l2_line_size << " bytes.\n";
+  if (config.l2_write_thru_no_allo) {
+    cout << "The cache uses a no-write-allocate and write through policy.\n";
+  } else {
+    cout << "The cache uses a write-allocate and write-back policy.\n";
+  }
+  cout << "Number of bits used for the index is " << config.l2_index_bits << ".\n";
+  cout << "Number of bits used for the offset is " << config.l2_offset_bits << ".\n\n";
+  if(config.virt_addr){
+    cout << "The addresses read in are virtual addresses.\n\n";
+  } else{
+    cout << "The addresses read in are physical addresses.\n\n";
+  }
 }
